@@ -1,0 +1,11 @@
+registries:
+  - name: official
+    description: Official Spark Arena registry for recipes, tuning configs, and benchmark profiles
+    recipes: official-recipes
+    tuning: tuning
+    benchmarks: benchmarking
+
+  - name: experimental
+    description: Spark Arena registry for experimental recipes
+    recipes: experimental-recipes
+    visible: false
