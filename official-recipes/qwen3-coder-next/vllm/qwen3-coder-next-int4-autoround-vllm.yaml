@@ -1,0 +1,46 @@
+recipe_version: "2"
+model: Intel/Qwen3-Coder-Next-int4-AutoRound
+runtime: vllm
+max_nodes: 1
+container: ghcr.io/spark-arena/dgx-vllm-eugr-nightly-tf5:latest
+
+metadata:
+  description: Qwen3-Coder-Next-int4-Autoround
+
+mods:
+  - mods/fix-qwen3-next-autoround
+
+defaults:
+  port: 8000
+  host: 0.0.0.0
+  gpu_memory_utilization: 0.7
+  max_model_len: 262144
+  tool_call_parser: qwen3_coder
+  max_num_seqs: 128
+  max_num_batched_tokens: 16384
+  kv_cache_dtype: fp8
+  optimization_level: 3
+  performance_mode: throughput
+  mamba_cache_mode: align
+
+env:
+  VLLM_MARLIN_USE_ATOMIC_ADD: "1"
+  VLLM_SLEEP_WHEN_IDLE: "0"
+
+command: |
+  vllm serve {model} \
+    --enable-auto-tool-choice \
+    --tool-call-parser {tool_call_parser} \
+    --gpu-memory-utilization {gpu_memory_utilization} \
+    --host {host} \
+    --port {port} \
+    --load-format fastsafetensors \
+    --enable-prefix-caching \
+    --enable-chunked-prefill \
+    --max-model-len {max_model_len} \
+    --max-num-seqs {max_num_seqs} \
+    --max-num-batched-tokens {max_num_batched_tokens} \
+    --kv-cache-dtype {kv_cache_dtype} \
+    --optimization-level {optimization_level} \
+    --performance-mode {performance_mode} \
+    --mamba-cache-mode {mamba_cache_mode}
