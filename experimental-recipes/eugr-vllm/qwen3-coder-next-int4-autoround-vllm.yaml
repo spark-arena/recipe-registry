@@ -1,0 +1,32 @@
+recipe_version: "2"
+model: Intel/Qwen3-Coder-Next-int4-AutoRound
+runtime: vllm
+max_nodes: 1
+container: ghcr.io/spark-arena/dgx-vllm-eugr-nightly:latest
+
+metadata:
+  description: Qwen3-Coder-Next INT4-AutoRound — solo node only
+
+mods:
+  - mods/fix-qwen3-next-autoround
+
+defaults:
+  port: 8000
+  host: 0.0.0.0
+  tensor_parallel: 1
+  gpu_memory_utilization: 0.7
+  max_model_len: 262144
+
+env:
+  VLLM_MARLIN_USE_ATOMIC_ADD: "1"
+
+command: |
+  vllm serve {model} \
+    --enable-auto-tool-choice \
+    --tool-call-parser qwen3_coder \
+    --gpu-memory-utilization {gpu_memory_utilization} \
+    --host {host} \
+    --port {port} \
+    --load-format fastsafetensors \
+    --enable-prefix-caching \
+    --max-model-len {max_model_len}

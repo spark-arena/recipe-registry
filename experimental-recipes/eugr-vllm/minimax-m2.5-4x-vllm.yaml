@@ -1,0 +1,31 @@
+recipe_version: "2"
+model: MiniMaxAI/MiniMax-M2.5
+runtime: vllm
+min_nodes: 4
+container: ghcr.io/spark-arena/dgx-vllm-eugr-nightly:latest
+
+metadata:
+  description: MiniMax-M2.5 — full precision, TP=4 across 4 DGX Spark nodes
+
+defaults:
+  port: 8000
+  host: 0.0.0.0
+  tensor_parallel: 4
+  gpu_memory_utilization: 0.90
+  max_model_len: 128000
+
+env:
+  VLLM_DISTRIBUTED_EXECUTOR_CONFIG: '{"placement_group_options":{"strategy":"SPREAD"}}'
+
+command: |
+  vllm serve {model} \
+    --trust-remote-code \
+    --gpu-memory-utilization {gpu_memory_utilization} \
+    -tp {tensor_parallel} \
+    --max-model-len {max_model_len} \
+    --load-format fastsafetensors \
+    --enable-auto-tool-choice \
+    --tool-call-parser minimax_m2 \
+    --reasoning-parser minimax_m2_append_think \
+    --host {host} \
+    --port {port}
