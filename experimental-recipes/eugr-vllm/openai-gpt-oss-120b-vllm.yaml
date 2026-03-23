@@ -2,7 +2,10 @@ recipe_version: "2"
 model: openai/gpt-oss-120b
 runtime: vllm
 min_nodes: 2
-container: ghcr.io/spark-arena/dgx-vllm-eugr-nightly:latest
+container: vllm-node-mxfp4
+
+build_args:
+  - "--exp-mxfp4"
 
 metadata:
   description: OpenAI GPT-OSS 120B — MXFP4 quantization with FlashInfer
