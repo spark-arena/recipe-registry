@@ -1,0 +1,34 @@
+recipe_version: "2"
+model: cyankiwi/GLM-4.7-Flash-AWQ-4bit
+runtime: vllm
+container: ghcr.io/spark-arena/dgx-vllm-eugr-nightly-tf5:latest
+
+metadata:
+  description: GLM-4.7-Flash-AWQ — cyankiwi AWQ quantized GLM-4.7-Flash with speed optimization patch
+
+mods:
+  - mods/fix-glm-4.7-flash-AWQ
+
+defaults:
+  port: 8000
+  host: 0.0.0.0
+  tensor_parallel: 1
+  gpu_memory_utilization: 0.7
+  max_model_len: 202752
+  max_num_batched_tokens: 4096
+  max_num_seqs: 64
+  served_model_name: glm-4.7-flash
+
+command: |
+  vllm serve {model} \
+    --tool-call-parser glm47 \
+    --reasoning-parser glm45 \
+    --enable-auto-tool-choice \
+    --served-model-name {served_model_name} \
+    --max-model-len {max_model_len} \
+    --max-num-batched-tokens {max_num_batched_tokens} \
+    --max-num-seqs {max_num_seqs} \
+    --gpu-memory-utilization {gpu_memory_utilization} \
+    -tp {tensor_parallel} \
+    --host {host} \
+    --port {port}

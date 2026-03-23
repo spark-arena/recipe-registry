@@ -1,0 +1,46 @@
+recipe_version: "2"
+model: Qwen/Qwen3.5-397B-A17B-FP8
+runtime: vllm
+min_nodes: 4
+max_nodes: 4
+container: ghcr.io/spark-arena/dgx-vllm-eugr-nightly-tf5:latest
+
+metadata:
+  description: Qwen3.5-397B-A17B-FP8 — TP=4 across 4 DGX Spark nodes
+
+mods:
+  - mods/fix-qwen3.5-autoround
+
+defaults:
+  port: 8000
+  host: 0.0.0.0
+  tensor_parallel: 4
+  gpu_memory_utilization: 0.85
+  max_model_len: 262144
+  max_num_batched_tokens: 8192
+
+env:
+  VLLM_USE_DEEP_GEMM: "0"
+  VLLM_USE_FLASHINFER_MOE_FP16: "1"
+  VLLM_USE_FLASHINFER_SAMPLER: "0"
+  OMP_NUM_THREADS: "4"
+
+command: |
+  vllm serve {model} \
+    --max-model-len {max_model_len} \
+    --gpu-memory-utilization {gpu_memory_utilization} \
+    --host {host} \
+    --port {port} \
+    --load-format fastsafetensors \
+    --enable-prefix-caching \
+    --enable-auto-tool-choice \
+    --tool-call-parser qwen3_coder \
+    --reasoning-parser qwen3 \
+    --max-num-batched-tokens {max_num_batched_tokens} \
+    --trust-remote-code \
+    -tp {tensor_parallel} \
+    --mm-encoder-tp-mode data \
+    --kv-cache-dtype fp8 \
+    --compilation-config.cudagraph_mode none \
+    --max-num-seqs 32 \
+    --attention-backend flashinfer

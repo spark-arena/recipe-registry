@@ -1,0 +1,34 @@
+recipe_version: "2"
+model: nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B-NVFP4
+runtime: vllm
+max_nodes: 1
+container: ghcr.io/spark-arena/dgx-vllm-eugr-nightly:latest
+
+metadata:
+  description: Nemotron-3-Nano NVFP4 — single node only
+
+mods:
+  - mods/nemotron-nano
+
+defaults:
+  port: 8000
+  host: 0.0.0.0
+  tensor_parallel: 1
+  gpu_memory_utilization: 0.7
+  max_model_len: 262144
+
+command: |
+  vllm serve {model} \
+    --moe-backend cutlass \
+    --max-model-len {max_model_len} \
+    --host {host} \
+    --port {port} \
+    --trust-remote-code \
+    --enable-auto-tool-choice \
+    --tool-call-parser qwen3_coder \
+    --reasoning-parser-plugin nano_v3_reasoning_parser.py \
+    --reasoning-parser nano_v3 \
+    --kv-cache-dtype fp8 \
+    --enable-prefix-caching \
+    --load-format fastsafetensors \
+    --gpu-memory-utilization {gpu_memory_utilization}
