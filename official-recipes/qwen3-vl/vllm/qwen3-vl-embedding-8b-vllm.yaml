@@ -13,6 +13,7 @@ defaults:
   tensor_parallel: 1
   gpu_memory_utilization: 0.3
   max_model_len: 32768
+  load_format: safetensors
 
 command: |
   vllm serve {model} \
@@ -22,5 +23,5 @@ command: |
     --host {host} \
     --port {port} \
     --max-model-len {max_model_len} \
-    --load-format fastsafetensors \
+    --load-format {load_format} \
     --trust-remote-code
