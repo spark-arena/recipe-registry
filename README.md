@@ -1,17 +1,14 @@
 <p align="center">
-  <img src="assets/official-banner.svg" alt="sparkrun — Official Recipe Registry" width="560" />
+<img src="assets/spark-arena-logo.png" alt="Spark Arena" width="120" />
 </p>
-
+<h2 align="center">Spark Arena Team Official Inference Recipes for NVIDIA DGX Spark</h2>
 <p align="center">
    <a href="https://spark-arena.com"><img src="https://img.shields.io/badge/Spark_Arena-community-76b900" alt="Spark Arena" /></a>  
    <a href="https://github.com/spark-arena/sparkrun"><img src="https://img.shields.io/badge/sparkrun-CLI-1e40af" alt="sparkrun CLI" /></a>
    <a href="https://sparkrun.dev"><img src="https://img.shields.io/badge/docs-sparkrun.dev-1e40af" alt="Documentation" /></a>
 
-
 [//]: # (  <a href="https://recipes.sparkrun.dev"><img src="https://img.shields.io/badge/browse-recipes-76b900" alt="Browse Recipes" /></a>)
 </p>
-
-<h3 align="center">Spark Arena Team Official Inference Recipes for NVIDIA DGX Spark</h3>
 
 ---
 
