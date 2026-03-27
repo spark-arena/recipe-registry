@@ -6,8 +6,9 @@ container: ghcr.io/spark-arena/dgx-vllm-eugr-nightly-tf5:latest
 metadata:
   description: GLM-4.7-Flash-AWQ — cyankiwi AWQ quantized GLM-4.7-Flash with speed optimization patch
 
-mods:
-  - mods/fix-glm-4.7-flash-AWQ
+# This mod applied MLA patch, but doesn't apply after vllm 0.14.1
+#mods:
+#  - mods/fix-glm-4.7-flash-AWQ
 
 defaults:
   port: 8000
