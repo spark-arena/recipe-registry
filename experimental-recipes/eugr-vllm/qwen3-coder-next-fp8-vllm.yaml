@@ -15,17 +15,21 @@ defaults:
   tensor_parallel: 1
   gpu_memory_utilization: 0.7
   max_model_len: 131072
+  tool_call_parser: qwen3_coder
+  kv_cache_dtype: fp8
+  load_format: fastsafetensors
+  attention_backend: flashinfer
 
 command: |
   vllm serve {model} \
     --enable-auto-tool-choice \
-    --tool-call-parser qwen3_coder \
+    --tool-call-parser {tool_call_parser} \
     --gpu-memory-utilization {gpu_memory_utilization} \
     --host {host} \
     --port {port} \
-    --kv-cache-dtype fp8 \
-    --load-format fastsafetensors \
-    --attention-backend flashinfer \
+    --kv-cache-dtype {kv_cache_dtype} \
+    --load-format {load_format} \
+    --attention-backend {attention_backend} \
     --enable-prefix-caching \
     --max-model-len {max_model_len} \
     -tp {tensor_parallel}

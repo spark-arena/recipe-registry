@@ -16,6 +16,8 @@ defaults:
   tensor_parallel: 1
   gpu_memory_utilization: 0.7
   max_model_len: 262144
+  load_format: fastsafetensors
+  tool_call_parser: qwen3_coder
 
 env:
   VLLM_MARLIN_USE_ATOMIC_ADD: "1"
@@ -23,10 +25,10 @@ env:
 command: |
   vllm serve {model} \
     --enable-auto-tool-choice \
-    --tool-call-parser qwen3_coder \
+    --tool-call-parser {tool_call_parser} \
     --gpu-memory-utilization {gpu_memory_utilization} \
     --host {host} \
     --port {port} \
-    --load-format fastsafetensors \
+    --load-format {load_format} \
     --enable-prefix-caching \
     --max-model-len {max_model_len}

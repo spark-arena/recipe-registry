@@ -17,6 +17,9 @@ defaults:
   gpu_memory_utilization: 0.7
   max_model_len: 262144
   max_num_batched_tokens: 8192
+  load_format: fastsafetensors
+  tool_call_parser: qwen3_coder
+  reasoning_parser: qwen3
 
 env:
   VLLM_MARLIN_USE_ATOMIC_ADD: "1"
@@ -27,11 +30,11 @@ command: |
     --gpu-memory-utilization {gpu_memory_utilization} \
     --host {host} \
     --port {port} \
-    --load-format fastsafetensors \
+    --load-format {load_format} \
     --enable-prefix-caching \
     --enable-auto-tool-choice \
-    --tool-call-parser qwen3_coder \
-    --reasoning-parser qwen3 \
+    --tool-call-parser {tool_call_parser} \
+    --reasoning-parser {reasoning_parser} \
     --max-num-batched-tokens {max_num_batched_tokens} \
     --trust-remote-code \
     --chat-template unsloth.jinja \
