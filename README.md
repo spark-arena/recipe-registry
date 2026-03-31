@@ -26,7 +26,7 @@ sparkrun run @official/our-awesome-recipe
 ### Recipe format
 
 Recipes follow the standard sparkrun recipe schema. See
-the [recipe authoring docs](https://sparkrun.dev/recipes/overview/) for the full specification.
+the [recipe authoring docs](https://sparkrun.dev/recipes/format/) for the full specification.
 
 ## Run Official Recipes
 
