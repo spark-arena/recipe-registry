@@ -1,0 +1,41 @@
+recipe_version: "2"
+model: google/gemma-4-26B-A4B-it
+runtime: vllm
+min_nodes: 1
+container: ghcr.io/spark-arena/dgx-vllm-eugr-nightly-tf5:latest
+
+metadata:
+  description: Gemma4-26B-A4B-it (Google Upstream BF16 Model, online FP8 quantization)
+
+defaults:
+  port: 8000
+  host: 0.0.0.0
+  tensor_parallel: 1
+  pipeline_parallel: 1
+  gpu_memory_utilization: 0.8
+  max_model_len: 262144
+  max_num_batched_tokens: 8192
+  kv_cache_dtype: auto
+  tool_call_parser: "gemma4"
+  reasoning_parser: "gemma4"
+  load_format: "fastsafetensors"
+  quantization: "fp8"
+
+command: |
+  vllm serve {model} \
+    --max-model-len {max_model_len} \
+    --kv-cache-dtype {kv_cache_dtype} \
+    --gpu-memory-utilization {gpu_memory_utilization} \
+    --host {host} \
+    --port {port} \
+    --load-format {load_format} \
+    --enable-prefix-caching \
+    --tool-call-parser {tool_call_parser} \
+    --enable-auto-tool-choice \
+    --reasoning-parser {reasoning_parser} \
+    --async-scheduling \
+    --max-num-batched-tokens {max_num_batched_tokens} \
+    --trust-remote-code \
+    --quantization {quantization} \
+    -tp {tensor_parallel} \
+    -pp {pipeline_parallel}
