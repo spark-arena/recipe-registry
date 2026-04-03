@@ -15,7 +15,7 @@ defaults:
   gpu_memory_utilization: 0.8
   max_model_len: 262144
   max_num_batched_tokens: 8192
-  kv_cache_dtype: auto
+  kv_cache_dtype: fp8
   tool_call_parser: "gemma4"
   reasoning_parser: "gemma4"
   load_format: "fastsafetensors"
