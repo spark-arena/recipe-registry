@@ -7,6 +7,9 @@ container: ghcr.io/spark-arena/dgx-vllm-eugr-nightly-tf5:latest
 metadata:
   description: Gemma4-26B-A4B-it (Google Upstream BF16 Model, online FP8 quantization)
 
+mods:
+  - mods/fix-gemma4-tool-parser
+
 defaults:
   port: 8000
   host: 0.0.0.0
