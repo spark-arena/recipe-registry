@@ -1,0 +1,39 @@
+recipe_version: "2"
+model: cyankiwi/Qwen3.5-122B-A10B-AWQ-4bit
+runtime: vllm
+min_nodes: 1
+container: ghcr.io/spark-arena/dgx-vllm-eugr-nightly-tf5:latest
+
+metadata:
+  description: Qwen3.5-122B-A10B-AWQ-4bit
+
+mods:
+  - mods/fix-qwen3.5-chat-template
+
+defaults:
+  port: 8000
+  host: 0.0.0.0
+  tensor_parallel: 1
+  pipeline_parallel: 1
+  gpu_memory_utilization: 0.7
+  max_model_len: 262144
+  max_num_batched_tokens: 8192
+  load_format: fastsafetensors
+  tool_call_parser: qwen3_coder
+  reasoning_parser: qwen3
+
+command: |
+  vllm serve {model} \
+    --max-model-len {max_model_len} \
+    --gpu-memory-utilization {gpu_memory_utilization} \
+    --host {host} \
+    --port {port} \
+    --load-format {load_format} \
+    --enable-prefix-caching \
+    --enable-auto-tool-choice \
+    --tool-call-parser {tool_call_parser} \
+    --reasoning-parser {reasoning_parser} \
+    --chat-template unsloth.jinja \
+    -tp {tensor_parallel} \
+    -pp {pipeline_parallel} \
+    --max-num-batched-tokens {max_num_batched_tokens}
