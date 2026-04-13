@@ -1,0 +1,36 @@
+recipe_version: "2"
+model: cyankiwi/MiniMax-M2.7-AWQ-4bit
+runtime: vllm
+min_nodes: 2
+container: ghcr.io/spark-arena/dgx-vllm-eugr-nightly:latest
+
+metadata:
+  description: MiniMax-M2.7-AWQ — AWQ quantized MiniMax M2.7
+
+defaults:
+  port: 8000
+  host: 0.0.0.0
+  tensor_parallel: 2
+  pipeline_parallel: 1
+  gpu_memory_utilization: 0.8
+  max_model_len: 196608
+  load_format: fastsafetensors
+  tool_call_parser: minimax_m2
+  reasoning_parser: minimax_m2
+
+env:
+  VLLM_MARLIN_USE_ATOMIC_ADD: "1"
+
+command: |
+  vllm serve {model} \
+    --trust-remote-code \
+    --gpu-memory-utilization {gpu_memory_utilization} \
+    -tp {tensor_parallel} \
+    -pp {pipeline_parallel} \
+    --max-model-len {max_model_len} \
+    --load-format {load_format} \
+    --enable-auto-tool-choice \
+    --tool-call-parser {tool_call_parser} \
+    --reasoning-parser {reasoning_parser} \
+    --host {host} \
+    --port {port}
