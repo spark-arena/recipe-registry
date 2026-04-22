@@ -23,6 +23,7 @@ defaults:
   attention_backend: flashinfer
   tool_call_parser: qwen3_coder
   reasoning_parser: qwen3
+  speculative_config: '{"method": "mtp", "num_speculative_tokens": 2}'
 
 env:
   VLLM_MARLIN_USE_ATOMIC_ADD: "1"
@@ -42,6 +43,7 @@ command: |
     --kv-cache-dtype {kv_cache_dtype} \
     --load-format {load_format} \
     --attention-backend {attention_backend} \
+    --speculative-config '{speculative_config}' \
     --enable-prefix-caching \
     -tp {tensor_parallel} \
     -pp {pipeline_parallel}
