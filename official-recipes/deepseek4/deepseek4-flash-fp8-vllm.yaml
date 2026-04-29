@@ -1,0 +1,60 @@
+recipe_version: "2"
+model: deepseek-ai/DeepSeek-V4-Flash
+runtime: vllm
+container: sparkrun-vllm-deepseek4
+min_nodes: 2
+
+metadata:
+  description: DeepSeek-V4-Flash
+
+build_args:
+  - "--apply-vllm-pr"
+  - "40991"
+
+mods:
+  - "mods/drop-caches"
+
+defaults:
+  port: 8000
+  host: 0.0.0.0
+  tensor_parallel: 2
+  pipeline_parallel: 1
+  data_parallel: 1
+  gpu_memory_utilization: 0.85
+  max_model_len: 1048560
+  max_num_seqs: 4
+  max_num_batched_tokens: 4176
+  max_cudagraph_capture_size: 4
+  load_format: instanttensor
+  kv_cache_dtype: fp8
+  tool_call_parser: deepseek_v4
+  reasoning_parser: deepseek_v4
+  tokenizer_mode: deepseek_v4
+  compilation_config: '{"cudagraph_mode":"FULL_AND_PIECEWISE","custom_ops":["all"]}'
+
+env:
+  TILELANG_CLEANUP_TEMP_FILES: "1"
+  VLLM_TRITON_MLA_SPARSE: "1"
+  VLLM_TRITON_MLA_SPARSE_HEAD_BLOCK_SIZE: "4"
+
+# --attention_config.use_fp4_indexer_cache=True \
+command: |
+  vllm serve {model} \
+    --host {host} \
+    --port {port} \
+    --max-model-len {max_model_len} \
+    --max-num-seqs {max_num_seqs} \
+    --max-num-batched-tokens {max_num_batched_tokens} \
+    --trust-remote-code \
+    --gpu-memory-utilization {gpu_memory_utilization} \
+    --enable-auto-tool-choice \
+    --tool-call-parser {tool_call_parser} \
+    --tokenizer-mode {tokenizer_mode} \
+    --reasoning-parser {reasoning_parser} \
+    --kv-cache-dtype {kv_cache_dtype} \
+    --load-format {load_format} \
+    --compilation-config '{compilation_config}' \
+    --enable-prefix-caching \
+    --max-cudagraph-capture-size {max_cudagraph_capture_size} \
+    -tp {tensor_parallel} \
+    -pp {pipeline_parallel}
