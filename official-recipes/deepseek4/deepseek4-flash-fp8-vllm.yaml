@@ -20,11 +20,11 @@ defaults:
   tensor_parallel: 2
   pipeline_parallel: 1
   data_parallel: 1
-  gpu_memory_utilization: 0.85
-  max_model_len: 1048560
-  max_num_seqs: 4
-  max_num_batched_tokens: 4176
-  max_cudagraph_capture_size: 4
+  gpu_memory_utilization: 0.875
+  max_model_len: 256000
+  max_num_seqs: 10
+  max_num_batched_tokens: 6144
+  max_cudagraph_capture_size: 8
   load_format: instanttensor
   kv_cache_dtype: fp8
   tool_call_parser: deepseek_v4
