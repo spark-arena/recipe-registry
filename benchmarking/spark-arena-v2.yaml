@@ -7,6 +7,7 @@ args:
   tg: [ 128 ]
   concurrency: [ 1, 2, 5, 10 ]
   prefix_caching: true
+  runs: 3
 
 # Heat-aware schedule generated from sparkrun-internal/benchmark-heat-load.py
 # strategy: bucket_43521_seed42 (n_buckets=5, pattern=(4,3,5,2,1), seed=42)
