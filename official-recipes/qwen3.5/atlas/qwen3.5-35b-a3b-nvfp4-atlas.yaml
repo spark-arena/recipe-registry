@@ -1,0 +1,28 @@
+recipe_version: "2"
+model: Sehyo/Qwen3.5-35B-A3B-NVFP4
+runtime: atlas
+container: avarok/atlas-gb10:latest
+max_nodes: 1
+
+metadata:
+  description: |
+    Qwen3.5-35B (A3B MoE) NVFP4 + MTP — Atlas's fastest catalogued model
+    on a single GB10 (~133 tok/s decode at concurrency=1, ISL=128, OSL=128
+    per the avarok/atlas-gb10 QUICKSTART).
+  maintainer: avarok
+  category: agent
+  model_params: 35B
+  model_dtype: nvfp4
+  quantization: nvfp4
+  kv_dtype: nvfp4
+
+defaults:
+  port: 8888
+  host: 0.0.0.0
+  max_model_len: 8192
+  kv_cache_dtype: nvfp4
+  gpu_memory_utilization: 0.88
+  scheduling_policy: slai
+  speculative: true
+  mtp_quantization: nvfp4
+  enable_prefix_caching: true
