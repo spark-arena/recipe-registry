@@ -24,7 +24,11 @@ defaults:
   host: 0.0.0.0
   tensor_parallel: 1
   ep_size: 2
-  max_model_len: 16384
+  # 12288 (not 16384) — at gpu_memory_utilization 0.90 the head only fits
+  # 13120 KV tokens (820 blocks × 16) after weights + MoE setup on
+  # avarok/atlas-gb10:latest (3.0.0). Live-validated 2026-05-08 on the
+  # 10.10.10.1/10.10.10.2 GB10 pair.
+  max_model_len: 12288
   max_batch_size: 1
   kv_cache_dtype: bf16
   gpu_memory_utilization: 0.90
