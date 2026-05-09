@@ -7,9 +7,9 @@ min_nodes: 2
 metadata:
   description: DeepSeek-V4-Flash
 
-build_args:
-  - "--apply-vllm-pr"
-  - "40991"
+build_args: # updated 20260503
+  - "--vllm-ref"
+  - "refs/pull/40991/head"
 
 mods:
   - "mods/drop-caches"
@@ -20,7 +20,7 @@ defaults:
   tensor_parallel: 2
   pipeline_parallel: 1
   data_parallel: 1
-  gpu_memory_utilization: 0.875
+  gpu_memory_utilization: 0.825
   max_model_len: 256000
   max_num_seqs: 10
   max_num_batched_tokens: 6144
