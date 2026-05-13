@@ -4,8 +4,10 @@ registries:
     recipes: official-recipes
     tuning: tuning
     benchmarks: benchmarking
+    mods: official-mods
 
   - name: experimental
     description: Spark Arena registry for experimental recipes
     recipes: experimental-recipes
     visible: false
+    mods: experimental-mods
