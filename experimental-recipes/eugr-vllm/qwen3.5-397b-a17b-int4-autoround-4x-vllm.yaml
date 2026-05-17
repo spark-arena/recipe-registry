@@ -19,6 +19,8 @@ defaults:
   gpu_memory_utilization: 0.78
   max_model_len: 32768
   max_num_batched_tokens: 8192
+  tool_call_parser: qwen3_coder
+  reasoning_parser: qwen3
 
 env:
   VLLM_MARLIN_USE_ATOMIC_ADD: "1"
@@ -26,8 +28,8 @@ env:
 
 command: |
   vllm serve {model} \
-    --tool-call-parser qwen3_coder \
-    --reasoning-parser qwen3 \
+    --tool-call-parser {tool_call_parser} \
+    --reasoning-parser {reasoning_parser} \
     --enable-auto-tool-choice \
     --tensor-parallel-size {tensor_parallel} \
     --kv-cache-dtype fp8 \

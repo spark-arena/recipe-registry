@@ -7,7 +7,6 @@ metadata:
   description: Qwen3.5-122B-A10B INT4-AutoRound
 
 mods:
-  - mods/fix-qwen3.5-autoround
   - mods/fix-qwen3.5-chat-template
 
 defaults:
@@ -18,7 +17,7 @@ defaults:
   max_model_len: 262144
   max_num_batched_tokens: 8192
   load_format: fastsafetensors
-  tool_call_parser: qwen3_coder
+  tool_call_parser: qwen3_xml
   reasoning_parser: qwen3
 
 env:

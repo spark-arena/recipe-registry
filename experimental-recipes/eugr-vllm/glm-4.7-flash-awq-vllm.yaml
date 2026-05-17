@@ -18,11 +18,13 @@ defaults:
   max_model_len: 202752
   max_num_batched_tokens: 4096
   max_num_seqs: 64
+  tool_call_parser: glm47
+  reasoning_parser: glm45
 
 command: |
   vllm serve {model} \
-    --tool-call-parser glm47 \
-    --reasoning-parser glm45 \
+    --tool-call-parser {tool_call_parser} \
+    --reasoning-parser {reasoning_parser} \
     --enable-auto-tool-choice \
     --max-model-len {max_model_len} \
     --max-num-batched-tokens {max_num_batched_tokens} \

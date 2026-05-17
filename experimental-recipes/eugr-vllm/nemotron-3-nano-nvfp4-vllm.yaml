@@ -16,6 +16,9 @@ defaults:
   tensor_parallel: 1
   gpu_memory_utilization: 0.7
   max_model_len: 262144
+  load_format: fastsafetensors
+  tool_call_parser: qwen3_coder
+  reasoning_parser: nano_v3
 
 command: |
   vllm serve {model} \
@@ -25,10 +28,10 @@ command: |
     --port {port} \
     --trust-remote-code \
     --enable-auto-tool-choice \
-    --tool-call-parser qwen3_coder \
+    --tool-call-parser {tool_call_parser} \
     --reasoning-parser-plugin nano_v3_reasoning_parser.py \
-    --reasoning-parser nano_v3 \
+    --reasoning-parser {reasoning_parser} \
     --kv-cache-dtype fp8 \
     --enable-prefix-caching \
-    --load-format fastsafetensors \
+    --load-format {load_format} \
     --gpu-memory-utilization {gpu_memory_utilization}

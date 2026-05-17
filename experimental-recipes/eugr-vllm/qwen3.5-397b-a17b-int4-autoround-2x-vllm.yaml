@@ -6,20 +6,21 @@ max_nodes: 2
 container: ghcr.io/spark-arena/dgx-vllm-eugr-nightly-tf5:latest
 
 metadata:
-  description: Qwen3.5-397B-A17B INT4-AutoRound — TP=2 with gpu-memory-utilization in GB mode
+  description: Qwen3.5-397B-A17B INT4-AutoRound — TP=2 across 2 DGX Spark nodes
 
 mods:
-  - mods/fix-qwen3.5-autoround
   - mods/fix-qwen3.5-chat-template
-  - mods/gpu-mem-util-gb
 
 defaults:
   port: 8000
   host: 0.0.0.0
   tensor_parallel: 2
-  gpu_memory_utilization: 112
+  gpu_memory_utilization: 0.9
   max_model_len: 262144
   max_num_batched_tokens: 4176
+  load_format: instanttensor
+  tool_call_parser: qwen3_xml
+  reasoning_parser: qwen3
 
 env:
   PYTORCH_CUDA_ALLOC_CONF: "expandable_segments:True"
@@ -30,14 +31,15 @@ command: |
     --max-model-len {max_model_len} \
     --max-num-seqs 2 \
     --kv-cache-dtype fp8 \
-    --gpu-memory-utilization-gb {gpu_memory_utilization} \
+    --gpu-memory-utilization {gpu_memory_utilization} \
     --host {host} \
     --port {port} \
     --enable-prefix-caching \
     --enable-auto-tool-choice \
-    --tool-call-parser qwen3_coder \
-    --reasoning-parser qwen3 \
+    --tool-call-parser {tool_call_parser} \
+    --reasoning-parser {reasoning_parser} \
     --max-num-batched-tokens {max_num_batched_tokens} \
     --trust-remote-code \
     --chat-template unsloth.jinja \
+    --load-format {load_format} \
     -tp {tensor_parallel}

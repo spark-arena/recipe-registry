@@ -15,9 +15,7 @@ metadata:
 build_args:
   - --tf5
 
-# Mod required to fix ROPE syntax error
 mods:
-  - mods/fix-qwen3.5-autoround
   - mods/fix-qwen3.5-chat-template
 
 defaults:
@@ -30,6 +28,7 @@ defaults:
   max_num_batched_tokens: 16384
   max_num_seqs: 10
   kv_cache_dtype: fp8
+  load_format: instanttensor
   tool_call_parser: qwen3_coder
   reasoning_parser: qwen3
 
@@ -54,5 +53,6 @@ command: |
     --max-num-batched-tokens {max_num_batched_tokens} \
     --trust-remote-code \
     --chat-template unsloth.jinja \
+    --load-format {load_format} \
     -tp {tensor_parallel} \
     -pp {pipeline_parallel}

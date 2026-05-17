@@ -1,21 +1,26 @@
 recipe_version: "2"
 model: nvidia/NVIDIA-Nemotron-3-Super-120B-A12B-NVFP4
 runtime: vllm
+min_nodes: 2
 container: ghcr.io/spark-arena/dgx-vllm-eugr-nightly:latest
 
 metadata:
   description: Nemotron-3-Super NVFP4 — CUTLASS kernels optimized
 
-mods:
-  - mods/nemotron-super
-
 defaults:
   port: 8000
   host: 0.0.0.0
-  tensor_parallel: 1
+  tensor_parallel: 2
   gpu_memory_utilization: 0.7
   max_model_len: 262144
   max_num_seqs: 10
+  load_format: fastsafetensors
+  tool_call_parser: qwen3_coder
+  reasoning_parser: nemotron_v3
+
+env:
+  VLLM_FLASHINFER_ALLREDUCE_BACKEND: "trtllm"
+  VLLM_ALLOW_LONG_MAX_MODEL_LEN: "1"
 
 command: |
   vllm serve {model} \
@@ -29,8 +34,9 @@ command: |
     --host {host} \
     --port {port} \
     --enable-auto-tool-choice \
-    --load-format fastsafetensors \
-    --tool-call-parser qwen3_coder \
-    --reasoning-parser-plugin super_v3_reasoning_parser.py \
-    --reasoning-parser super_v3 \
+    --load-format {load_format} \
+    --tool-call-parser {tool_call_parser} \
+    --reasoning-parser {reasoning_parser} \
+    --mamba_ssm_cache_dtype float32 \
+    --attention-backend TRITON_ATTN \
     --tensor-parallel-size {tensor_parallel}

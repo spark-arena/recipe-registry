@@ -13,6 +13,9 @@ defaults:
   tensor_parallel: 2
   gpu_memory_utilization: 0.7
   max_model_len: 128000
+  load_format: fastsafetensors
+  tool_call_parser: minimax_m2
+  reasoning_parser: minimax_m2
 
 command: |
   vllm serve {model} \
@@ -20,9 +23,9 @@ command: |
     --gpu-memory-utilization {gpu_memory_utilization} \
     -tp {tensor_parallel} \
     --max-model-len {max_model_len} \
-    --load-format fastsafetensors \
+    --load-format {load_format} \
     --enable-auto-tool-choice \
-    --tool-call-parser minimax_m2 \
-    --reasoning-parser minimax_m2 \
+    --tool-call-parser {tool_call_parser} \
+    --reasoning-parser {reasoning_parser} \
     --host {host} \
     --port {port}

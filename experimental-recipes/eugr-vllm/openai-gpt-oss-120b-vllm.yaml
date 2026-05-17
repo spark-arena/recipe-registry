@@ -1,39 +1,40 @@
 recipe_version: "2"
 model: openai/gpt-oss-120b
 runtime: vllm
-min_nodes: 2
-container: vllm-node-mxfp4
-
-build_args:
-  - "--exp-mxfp4"
+max_nodes: 1
+container: sparkarena/spark-vllm-docker:mxfp4
 
 metadata:
-  description: OpenAI GPT-OSS 120B — MXFP4 quantization with FlashInfer
+  description: OpenAI GPT-OSS 120B — MXFP4 quantization with FlashInfer (single node)
 
 defaults:
   port: 8000
   host: 0.0.0.0
-  tensor_parallel: 2
+  tensor_parallel: 1
   gpu_memory_utilization: 0.70
   max_num_batched_tokens: 8192
+  load_format: fastsafetensors
+  kv_cache_dtype: fp8
+  tool_call_parser: openai
+  reasoning_parser: openai_gptoss
 
 env:
   VLLM_USE_FLASHINFER_MOE_MXFP4_MXFP8: "1"
 
 command: |
   vllm serve {model} \
-    --tool-call-parser openai \
-    --reasoning-parser openai_gptoss \
+    --tool-call-parser {tool_call_parser} \
+    --reasoning-parser {reasoning_parser} \
     --enable-auto-tool-choice \
     --tensor-parallel-size {tensor_parallel} \
     --gpu-memory-utilization {gpu_memory_utilization} \
     --enable-prefix-caching \
-    --load-format fastsafetensors \
+    --load-format {load_format} \
     --quantization mxfp4 \
     --mxfp4-backend CUTLASS \
     --mxfp4-layers moe,qkv,o,lm_head \
     --attention-backend FLASHINFER \
-    --kv-cache-dtype fp8 \
+    --kv-cache-dtype {kv_cache_dtype} \
     --max-num-batched-tokens {max_num_batched_tokens} \
     --host {host} \
     --port {port}
