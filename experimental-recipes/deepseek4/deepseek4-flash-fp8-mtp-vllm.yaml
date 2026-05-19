@@ -1,15 +1,15 @@
 recipe_version: "2"
 model: deepseek-ai/DeepSeek-V4-Flash
 runtime: vllm
-container: sparkrun-vllm-deepseek4-20260517
+container: sparkrun-vllm-deepseek4-20260519
 min_nodes: 2
 
 metadata:
   description: DeepSeek-V4-Flash
 
-build_args: # updated 20260517
-  - "--vllm-ref"
-  - "refs/pull/41834/head"
+build_args: # updated 20260519
+  - "--apply-vllm-pr"
+  - "41834"
 
 mods:
   - "mods/drop-caches"
