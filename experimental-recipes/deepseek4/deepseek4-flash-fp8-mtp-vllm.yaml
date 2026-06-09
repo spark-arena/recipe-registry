@@ -1,18 +1,11 @@
 recipe_version: "2"
 model: deepseek-ai/DeepSeek-V4-Flash
 runtime: vllm
-container: sparkrun-vllm-deepseek4-20260517
+container: scitrera/dgx-spark-vllm-jasl-ds4:20260609
 min_nodes: 2
 
 metadata:
   description: DeepSeek-V4-Flash
-
-build_args: # updated 20260517
-  - "--vllm-ref"
-  - "refs/pull/41834/head"
-
-mods:
-  - "mods/drop-caches"
 
 defaults:
   port: 8000
@@ -37,6 +30,10 @@ env:
   TILELANG_CLEANUP_TEMP_FILES: "1"
   VLLM_TRITON_MLA_SPARSE: "1"
   VLLM_TRITON_MLA_SPARSE_HEAD_BLOCK_SIZE: "4"
+  # jasl sm120_tp2 long-context profile: larger sparse-MLA chunks than vLLM
+  # defaults (QUERY default 256 -> 512; TOPK matches default 512, set explicit).
+  VLLM_TRITON_MLA_SPARSE_QUERY_CHUNK_SIZE: "512"
+  VLLM_TRITON_MLA_SPARSE_TOPK_CHUNK_SIZE: "512"
 
 # --attention_config.use_fp4_indexer_cache=True \
 command: |
