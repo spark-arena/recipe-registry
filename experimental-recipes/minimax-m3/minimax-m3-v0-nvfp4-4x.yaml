@@ -1,0 +1,50 @@
+recipe_version: "2"
+model: sparkarena/Minimax-M3-v0-NVFP4
+runtime: sglang
+container: scitrera/dgx-spark-sglang-mm:v0
+min_nodes: 4
+
+metadata:
+  description: Release recipe for Minimax M3 v0 NVFP4 on GB10/DGX Spark (NVFP4, CUDA graph bs<=16, InstantTensor, shared expert fusion enabled)
+  quantization: nvfp4
+
+executor_config:
+  user: root
+
+defaults:
+  host: 0.0.0.0
+  port: 8000
+  tensor_parallel: 4
+  gpu_memory_utilization: 0.80
+  max_model_len: 200000
+  max_num_batched_tokens: 8192
+  kv_cache_dtype: auto
+  reasoning_parser: minimax-m3
+  tool_call_parser: minimax-m3
+  moe_runner_backend: triton
+  fp4_gemm_backend: cutlass
+  load_format: instanttensor
+  cuda_graph_max_bs: 16
+  cuda_graph_bs: "1 2 4 8 12 16"
+
+env:
+  TORCH_NCCL_ASYNC_ERROR_HANDLING: "1"
+
+command: |
+  sglang serve \
+    --model-path {model} \
+    --mem-fraction-static {gpu_memory_utilization} \
+    --context-length {max_model_len} \
+    --tp {tensor_parallel} \
+    --chunked-prefill-size {max_num_batched_tokens} \
+    --fp4-gemm-backend {fp4_gemm_backend} \
+    --load-format {load_format} \
+    --kv-cache-dtype {kv_cache_dtype} \
+    --reasoning-parser {reasoning_parser} \
+    --tool-call-parser {tool_call_parser} \
+    --moe-runner-backend {moe_runner_backend} \
+    --trust-remote-code \
+    --cuda-graph-max-bs {cuda_graph_max_bs} \
+    --cuda-graph-bs {cuda_graph_bs} \
+    --host {host} \
+    --port {port}
