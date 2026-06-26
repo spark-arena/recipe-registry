@@ -1,0 +1,425 @@
+--- a/sglang/srt/function_call/_llm_nom/m3_text.py
++++ b/sglang/srt/function_call/_llm_nom/m3_text.py
+@@ -1,8 +1,5 @@
+ import json
+-from dataclasses import dataclass
+-from typing import Any, Callable, Dict, Generator, List, Optional, Union
+-
+-from typing_extensions import Self
++from typing import Any, Callable, Dict, Generator, List, Optional
+ 
+ from .data_type import AtomDataType, FunctionCallParameterDataType
+ from .base import FunctionCallDict
+@@ -20,8 +17,10 @@
+ 
+     M3 uses a namespace token `]<]minimax[>[` as delimiter before each tag.
+     Parameters use actual XML tag names (not `<parameter name="...">`), and can be nested.
+-    Complex arguments, as nested XML tags, are buffered and emitted as complete JSON;
+-    Simple arguments, are streamed character-by-character if possible.
++    Complex (nested-XML) arguments are streamed as incremental JSON — brackets
++    open as containers open, leaves emit as their closing tag arrives — so
++    deeply nested parameters do not stall the SSE stream until the outer close.
++    Simple arguments are streamed character-by-character if possible.
+ 
+     Example raw output::
+ 
+@@ -224,31 +223,22 @@
+                         should_consume=False,
+                     )
+                     if tried is not None:
+-                        param_body_str = yield from self._take_any(
+-                            until="{}{}>".format(
+-                                self._parameter_suffix, parameter_name
+-                            ),
+-                            collect=True,
+-                        )
+-                        if param_body_str:
+-                            # nested XML -> object
+-                            # NOTE: The namespace token has the highest semantic
+-                            # priority. Once the model emits `]<]minimax[>[<` here,
+-                            # we MUST treat the body as nested XML, even if the
+-                            # schema says this parameter should be a primitive.
+-                            # The model is asserting "this is a JSON level
+-                            # transition" — schema mismatches are reported back via
+-                            # the agent loop, not silently rewritten here.
+-                            param = self._parse_parameter(
+-                                param_body_str, parameter_data_type
+-                            )
+-                        else:
+-                            param = parameter_data_type.convert("")
+-                        self._append_delta(
+-                            self._tool_call_output_key(
+-                                tool_call_index,
+-                                {"arguments": json_dumps(param)},
+-                            )
++                        # nested XML -> object/array
++                        # NOTE: The namespace token has the highest semantic
++                        # priority. Once the model emits `]<]minimax[>[<` here,
++                        # we MUST treat the body as nested XML, even if the
++                        # schema says this parameter should be a primitive.
++                        # The model is asserting "this is a JSON level
++                        # transition" — schema mismatches are reported back via
++                        # the agent loop, not silently rewritten here.
++                        #
++                        # The body is streamed incrementally: JSON fragments are
++                        # emitted as each child element closes, so deeply nested
++                        # parameters (array→object→array→object) do not stall
++                        # the SSE ``arguments`` stream until the outer closing
++                        # tag.
++                        yield from self._stream_nested_parameter(
++                            tool_call_index, parameter_name, parameter_data_type
+                         )
+                     else:
+                         # no more nested XML -> string / number / boolean
+@@ -272,95 +262,106 @@
+                 )
+                 tool_call_index += 1
+ 
+-    def _parse_parameter(
+-        self, body: str, parameter_data_type: FunctionCallParameterDataType
+-    ) -> dict:
+-        chunks = body.split(self._tool_call_namespace_token)
+-        # NOTE: Array detection is intentionally a strict "schema says array
+-        # AND first child is <item>" check. We do NOT promote a uniform
+-        # `<x><x>...` body to an array on schema mismatch — leave it as
+-        # `{"x": [...]}` so the agent loop can spot and correct the model.
+-        if (
+-            AtomDataType.array in parameter_data_type.candidates
+-            and len(chunks) > 1
+-            and chunks[1].startswith("<item>")
+-        ):
+-            root = []
+-        else:
+-            root = {}
+-        stack: List[_StackItem] = [
+-            _StackItem(tag=None, value=root, texts=None, data_type=parameter_data_type)
++    def _stream_nested_parameter(
++        self,
++        tool_call_index: int,
++        parameter_name: str,
++        parameter_data_type: FunctionCallParameterDataType,
++    ) -> Generator[dict, None, None]:
++        """Stream a nested-XML parameter body as incremental JSON.
++
++        Entered with the input positioned at ``{NS}<`` (the first child tag of
++        ``<parameter_name>``). Consumes through the matching
++        ``{NS}</parameter_name>`` and emits ``arguments`` deltas as it goes:
++
++        - ``[`` / ``{`` as soon as the first child of a container opens
++        - ``"key": `` for each object property as it opens
++        - ``, `` between siblings
++        - the converted leaf value when a leaf's closing tag arrives
++        - ``]`` / ``}`` when a container's closing tag arrives
++
++        This bounds the SSE stall to one leaf, instead of the whole body.
++
++        Model-error edge cases are handled to keep the emitted JSON
++        *parseable* and the outer ``_process`` loop in sync:
++
++        - **Bare ``{NS}`` segment** (NS not followed by ``<``): treated as a
++          text continuation, never raises.
++        - **Missing ``>``** on a tag: tag read is bounded by the next NS so
++          subsequent tags are not swallowed.
++        - **Mixed content** (text alongside child tags): array parents emit it
++          as an extra element in stream order; object parents accumulate it
++          and emit one ``"$text"`` property at close.
++        - **Unmatched close tag**: force-closes any open *non-root* frames;
++          the root is only popped on its own close, so a stray ``</bogus>``
++          doesn't terminate the parameter early.
++        - **Unclosed children** at the parent's close: force-closed in stack
++          order.
++        - **Duplicate keys** in an object: emitted as repeated ``"k": v``
++          pairs. Downstream ``json.loads`` is last-wins, so earlier values are
++          lost — an accepted regression vs the batch parser's
++          ``"k": [v1, v2]`` collapse, since streaming cannot retroactively
++          rewrite an already-emitted key.
++        """
++
++        def emit(s: str) -> None:
++            self._append_delta(
++                self._tool_call_output_key(tool_call_index, {"arguments": s})
++            )
++
++        stack: List[_StreamFrame] = [
++            _StreamFrame(tag=parameter_name, data_type=parameter_data_type)
+         ]
+ 
+-        # Ignore the first chunk inside the parameter.
+-        # It should be empty, since we've tried `self._parameter_prefix` and failed before entering this function.
+-        for chunk_index in range(1, len(chunks)):
+-            chunk = chunks[chunk_index]
+-            # There are 7 = 3 + 3 + 1 non-empty categories of chunks.
+-            if chunk.startswith("</"):
+-                gt_offset = chunk.find(">", 2)
+-                if gt_offset == -1:
+-                    # 1. `</tag`
+-                    tag = chunk[2:]
+-                    value = None
+-                elif gt_offset == len(chunk) - 1:
+-                    # 2. `</tag>`
+-                    tag = chunk[2:-1]
+-                    value = None
+-                else:
+-                    # 3. `</tag>value`
+-                    tag = chunk[2:gt_offset]
+-                    value = chunk[gt_offset + 1 :]
++        while stack:
++            # 1. Collect any text up to the next namespace token. For a leaf
++            #    frame this is (part of) its value; for a container frame this
++            #    is mixed-content text.
++            text = yield from self._take_any(
++                until=self._tool_call_namespace_token, collect=True
++            )
++            if text:
++                stack[-1].texts.append(text)
++
++            # 2. Read the tag: ``<name>`` or ``</name>``. The NS token was
++            #    consumed above; in well-formed output ``<`` follows. If it
++            #    doesn't (doubled NS, stray newline segment), loop back and
++            #    treat whatever follows as more text — never raise.
++            lt = yield from self._literal("<", should_raise=False)
++            if lt is None:
++                continue
++            # Bound the tag read by NS so a missing ``>`` doesn't swallow the
++            # next NS-prefixed segment into the tag name.
++            tag = yield from self._take_any(
++                until=(">", self._tool_call_namespace_token),
++                collect=True,
++                should_consume_suffix=False,
++            )
++            yield from self._literal(">", should_raise=False)
++            # If that returned None the tag had no ``>`` before the next NS;
++            # ``tag`` is still the element name (matches the batch parser's
++            # ``gt_offset == -1`` handling).
++
++            if tag.startswith("/"):
++                close_tag = tag[1:]
++                if close_tag == stack[0].tag:
++                    # Root close: force-close any unclosed children, then root.
++                    while stack:
++                        stack.pop().emit_close(emit)
++                    return
++                # Non-root close: pop and emit until we've closed the matching
++                # frame. Never pop the root — a stray ``</bogus>`` matching
++                # nothing is a no-op against the root.
+                 while len(stack) > 1:
+-                    item = stack.pop()
+-                    stack[-1].append(item)
+-                    if item.tag == tag:
++                    frame = stack.pop()
++                    frame.emit_close(emit)
++                    if frame.tag == close_tag:
+                         break
+-                if value:
+-                    stack[-1].append_text(value)
+-            elif chunk.startswith("<"):
+-                gt_offset = chunk.find(">", 1)
+-                if gt_offset == -1:
+-                    # 4. `<tag`
+-                    tag = chunk[1:]
+-                    value = None
+-                elif gt_offset == len(chunk) - 1:
+-                    # 5. `<tag>`
+-                    tag = chunk[1:-1]
+-                    value = None
+-                else:
+-                    # 6. `<tag>value`
+-                    tag = chunk[1:gt_offset]
+-                    value = chunk[gt_offset + 1 :]
+-                sub_data_type = stack[-1].get_data_type_of_property(tag)
+-                if (
+-                    sub_data_type
+-                    and AtomDataType.array in sub_data_type.candidates
+-                    and len(chunks) > chunk_index + 1
+-                    and chunks[chunk_index + 1].startswith("<item>")
+-                ):
+-                    sub = []
+-                elif sub_data_type and AtomDataType.object in sub_data_type.candidates:
+-                    sub = {}
+-                else:
+-                    sub = None
+-                stack.append(
+-                    _StackItem(
+-                        tag=tag,
+-                        value=sub,
+-                        texts=[value] if value else None,
+-                        data_type=sub_data_type,
+-                    )
+-                )
+-            elif chunk:
+-                # 7. `value`
+-                stack[-1].append_text(chunk)
+-
+-        while len(stack) > 1:
+-            item = stack.pop()
+-            stack[-1].append(item)
++            else:
++                parent = stack[-1]
++                parent.emit_open_child(tag, emit)
++                stack.append(parent.make_child(tag))
+ 
+-        return stack[0].get_value()
+ 
+     def stringify_function_calls(self, function_calls: List[FunctionCallDict]) -> str:
+         if not function_calls:
+@@ -407,74 +408,96 @@
+             return json.dumps(parameter, ensure_ascii=False)
+ 
+ 
+-@dataclass(slots=True)
+-class _StackItem:
+-    tag: Optional[str]
+-    value: Optional[Union[Dict, List]]
+-    texts: Optional[List[str]]
+-    data_type: Optional[FunctionCallParameterDataType]
++class _StreamFrame:
++    """One open element on the :meth:`M3TextParser._stream_nested_parameter`
++    stack.
++
++    ``kind`` is decided lazily on the *first child*: if the schema says array
++    and the first child is ``<item>`` it becomes ``"array"``, otherwise
++    ``"object"``. A frame whose ``kind`` is still ``None`` at close time is a
++    leaf — its value is the type-converted concatenation of ``texts``.
++    """
+ 
+-    def get_value(self) -> Any:
+-        if self.value is None:
+-            if self.texts:
+-                value = "".join(self.texts)
+-            else:
+-                value = ""
+-            if self.data_type:
+-                value = self.data_type.convert(value)
+-            return value
+-        elif self.texts and isinstance(self.value, dict):
+-            extra_text_key = "$text"
+-            while extra_text_key in self.value:
+-                extra_text_key = "$" + extra_text_key
+-            self.value[extra_text_key] = "".join(self.texts)
+-            return self.value
+-        else:
+-            return self.value
++    __slots__ = ("tag", "data_type", "kind", "child_count", "texts")
+ 
+-    def append(self, item: Self) -> None:
+-        if self.value is None:
+-            self.value = {item.tag: item.get_value()}
+-        elif isinstance(self.value, dict):
+-            if item.tag in self.value:
+-                # NOTE: Duplicate tag inside an object is collapsed into a
+-                # list to preserve all values, even if the schema declares
+-                # the key as a singleton. We don't drop the data and we
+-                # don't try to "fix" the schema mismatch silently — the agent
+-                # loop should surface the inconsistency back to the model.
+-                value = self.value[item.tag]
+-                if isinstance(value, list):
+-                    value.append(item.get_value())
+-                else:
+-                    self.value[item.tag] = [value, item.get_value()]
++    def __init__(
++        self, tag: str, data_type: Optional[FunctionCallParameterDataType]
++    ) -> None:
++        self.tag = tag
++        self.data_type = data_type
++        self.kind: Optional[str] = None
++        self.child_count = 0
++        self.texts: List[str] = []
++
++    def emit_open_child(self, child_tag: str, emit: Callable[[str], None]) -> None:
++        """Called when a child ``<child_tag>`` opens under this frame.
++
++        Decides this frame's container kind on the first child and emits the
++        opening bracket, then the separator and (for objects) the key. For
++        array frames, any mixed-content text accumulated since the last child
++        is flushed as an element first so it appears in stream order.
++        """
++        if self.kind is None:
++            if (
++                self.data_type
++                and AtomDataType.array in self.data_type.candidates
++                and child_tag == "item"
++            ):
++                self.kind = "array"
++                emit("[")
+             else:
+-                self.value[item.tag] = item.get_value()
+-        elif isinstance(self.value, list):
+-            # We expect `item.tag` to be `"item"`, but if it's not, we should still accept it.
+-            self.value.append(item.get_value())
++                self.kind = "object"
++                emit("{")
++        if self.kind == "array" and self.texts:
++            self._emit_array_text(emit)
++        if self.child_count:
++            emit(", ")
++        self.child_count += 1
++        if self.kind == "object":
++            emit(json_dumps(child_tag) + ": ")
++
++    def make_child(self, child_tag: str) -> "_StreamFrame":
++        if self.data_type is None:
++            child_dt = None
++        elif self.kind == "array":
++            child_dt = self.data_type.get_data_type_of_item(index=self.child_count - 1)
+         else:
+-            raise NotImplementedError()
++            child_dt = self.data_type.get_data_type_of_property(child_tag)
++        return _StreamFrame(tag=child_tag, data_type=child_dt)
+ 
+-    def append_text(self, value: str) -> None:
+-        if isinstance(self.value, list):
+-            if self.data_type:
+-                data_type = self.data_type.get_data_type_of_item(index=len(self.value))
+-                if data_type:
+-                    value = data_type.convert(value)
+-            self.value.append(value)
+-        elif self.texts is None:
+-            self.texts = [value]
++    def emit_close(self, emit: Callable[[str], None]) -> None:
++        if self.kind == "array":
++            if self.texts:
++                self._emit_array_text(emit)
++            emit("]")
++        elif self.kind == "object":
++            # All mixed-content text (leading, between, trailing) accumulates
++            # and is emitted once here as a single ``$text`` property.
++            if self.texts:
++                if self.child_count:
++                    emit(", ")
++                emit(json_dumps("$text") + ": " + json_dumps("".join(self.texts)))
++            emit("}")
+         else:
+-            self.texts.append(value)
++            # Leaf: convert accumulated text via the schema-derived data type.
++            text = "".join(self.texts)
++            value = self.data_type.convert(text) if self.data_type else text
++            emit(json_dumps(value))
++
++    def _emit_array_text(self, emit: Callable[[str], None]) -> None:
++        """Flush accumulated text as one array element (in stream order)."""
++        text = "".join(self.texts)
++        self.texts = []
++        dt = (
++            self.data_type.get_data_type_of_item(index=self.child_count)
++            if self.data_type
++            else None
++        )
++        value = dt.convert(text) if dt else text
++        if self.child_count:
++            emit(", ")
++        emit(json_dumps(value))
++        self.child_count += 1
++        self.child_count += 1
++
+ 
+-    def get_data_type_of_property(
+-        self, tag: str
+-    ) -> Optional[FunctionCallParameterDataType]:
+-        if self.data_type:
+-            if isinstance(self.value, list):
+-                # We expect `tag` to be `"item"`, but if it's not, we should still accept it.
+-                return self.data_type.get_data_type_of_item(index=len(self.value))
+-            elif isinstance(self.value, dict):
+-                return self.data_type.get_data_type_of_property(tag)
+-            else:
+-                return None
