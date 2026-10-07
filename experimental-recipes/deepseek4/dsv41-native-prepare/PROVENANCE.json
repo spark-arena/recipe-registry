@@ -1,0 +1,35 @@
+{
+  "repository": "https://github.com/littlecedar/sparkrun-recipe-registry",
+  "revision": "fdd1003ba2a1e766a0129d26ef769ae4025c8c30",
+  "source_mod": "mods/dsv41-sglang-overlay",
+  "files": [
+    {
+      "vendored_path": "upstream/littlecedar/run.sh",
+      "source_path": "mods/dsv41-sglang-overlay/run.sh",
+      "git_blob": "8e761c95628461811be9300be2bcaeceb67f3406",
+      "sha256": "94bf0ac9c38a950cb05b764a0a23e1376b0d5349943a2d83d7ea13ec189a78ac",
+      "git_mode": "100755"
+    },
+    {
+      "vendored_path": "upstream/littlecedar/launcher.py",
+      "source_path": "mods/dsv41-sglang-overlay/launcher.py",
+      "git_blob": "c1ae82e51388bf6807c234e181fcbffe32de9ea5",
+      "sha256": "ff1702646bc619ec262a5fa164a2998893771beed70a80227ceac0b74b426cea",
+      "git_mode": "100644"
+    },
+    {
+      "vendored_path": "upstream/littlecedar/README.md",
+      "source_path": "mods/dsv41-sglang-overlay/README.md",
+      "git_blob": "06490138e38b35f160035f33d73043ff7e40ba5d",
+      "sha256": "bd228ba7c05c2c71f822a344fbfdd51571ff148c368b53a8ab7960ad0ff46ffb",
+      "git_mode": "100644"
+    }
+  ],
+  "adaptation": {
+    "active_entrypoint": "run.sh",
+    "active_helper": "prepare.py",
+    "upstream_executed": false,
+    "description": "The active files adapt compatibility/cache/packing responsibilities for SPARKRUN hook environments; recipe env interpolation and SPARKRUN metadata supply launch context and SGLang runs directly. Original launcher is reference-only."
+  },
+  "license_notes": "Vendored files retain their exact original notices. See the source repository for upstream license terms: https://github.com/littlecedar/sparkrun-recipe-registry/tree/fdd1003ba2a1e766a0129d26ef769ae4025c8c30. This manifest does not assign a license to recipe YAML."
+}

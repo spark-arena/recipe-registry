@@ -1,0 +1,129 @@
+recipe_version: "2"
+min_sparkrun_version: "0.4.0"
+model: deepseek-ai/DeepSeek-V4.1-Flash
+model_revision: fb2764a5cf321eaa5070ca8f9e892818f477c16d
+runtime: sglang
+container: littlecedar/dgx-spark-dsv41:canary-roce@sha256:4e5002ab58b5cca670e2624c6a0d0799642914f04487ea130c71e7f525fa9c05
+min_nodes: 4
+max_nodes: 4
+
+metadata:
+  description: >-
+    Experimental DeepSeek-V4.1-Flash SGLang launch on four DGX Sparks:
+    TP4 EP1, DSpark k=5, 1M context, node-local NVMe Engram and RoCEnante.
+    Adapts Little Cedar's TP4 recipe and pinned image.
+  model_url: https://huggingface.co/deepseek-ai/DeepSeek-V4.1-Flash
+  model_params: "552B"
+  model_dtype: mxfp4
+  model_mtp_dtype: mxfp4
+  kv_dtype: fp8
+  attributions:
+    - author: Little Cedar Group
+      contribution: Source recipe, pinned image, runtime policy, and preparation mod; see the source for upstream attributions.
+      url: https://github.com/littlecedar/sparkrun-recipe-registry/blob/fdd1003ba2a1e766a0129d26ef769ae4025c8c30/recipes/ds4/deepseek-v4.1-flash-knapcio-tp4-1m-sglang.yaml
+
+mods:
+  - dsv41-native-prepare
+
+executor_config:
+  entrypoint: ""
+
+defaults:
+  port: 8000
+  host: 0.0.0.0
+  tensor_parallel: 4
+  data_parallel: 1
+  pipeline_parallel: 1
+  max_model_len: 1048576
+  expert_parallel: 1
+  trust_remote_code: true
+  load_format: safetensors
+  attention_backend: dsv4
+  moe_runner_backend: flashinfer_mxfp4
+  gpu_memory_utilization: 0.80
+  chunked_prefill: 4096
+  max_num_seqs: 16
+  cuda_graph_max_bs_decode: 16
+  max_total_tokens: 9400000
+  random_seed: 0
+  enable_decoder_swa_bounded_replay: true
+  tool_call_parser: deepseekv41
+  reasoning_parser: deepseek-v41
+  speculative_algorithm: DSPARK
+  speculative_dspark_block_size: 5
+  # Use the same immutable revision for distribution and engine loading.
+  revision: "{model_revision}"
+  model_type: llm
+
+# Adapter/fabric policy from the source launcher. NIC/HCA names are
+# deliberately absent: sparkrun discovers them on the participating nodes.
+# The pinned image supplies OFFLOAD_MODE=nvme and the adapters default fast
+# loading off. Keep expandable CUDA segments off (source-documented NaN failures).
+env:
+  PYTHONUNBUFFERED: "1"
+  DSV41_CACHE_GIB: "4"
+  DSV41_CACHE_WAYS: "16"
+  DSV41_IO_THREADS: "96"
+  DSV41_RESIDENT_SCALES: "0"
+  DSV41_ENGRAM_PREFETCH: "1"
+  DSV41_INDEXER_CHUNKED: "1"
+  SGLANG_DSPARK_FOLDED_SAMPLING: "2"
+  SGLANG_RUST_BUILD_MODE: "never"
+  SPARK_PREFILL_TP_SPLIT: "1"
+  DSV41_SHARED_PAD_K: "1"
+  DSV41_WO_A_W8: "1"
+  DSV41_WO_A_W8_MID: "1"
+  DSV41_WO_A_W8_DROP: "1"
+  DSV41_DRAFT_TAU: "0.7"
+  DSV41_DRAFT_HEAD_FP8: "1"
+  DSV41_BLOCK_VERIFY: "1"
+  DSV41_FOLDED_FENCE: "1"
+  DSV41_VERIFY_CAP: "conf:0.1"
+  DSV41_AUTOTUNE_KEEP: "1"
+  DSV41_REPLICATED_SPLIT: "wqkv_a,engram.wkv"
+  DSV41_DRAFT_MAIN_PROJ_SPLIT: "1"
+  DSV41_SPLIT_COMPACT_GATHER: "1"
+  DSV41_ROUTER_LIVE: "1"
+  DSV41_MOE_B12X_NEXT: "1"
+  DSV41_MOE_B12X_NEXT_DETERMINISTIC: "1"
+  DSV41_HC_FUSED: "1"
+  DSV41_PREFILL_SP: "1"
+  DSV41_PREFILL_SP_FP8: "1"
+  DSV41_L2_PREFETCH: "1"
+  DSV41_L2_PREFETCH_WOA: "1"
+  DSV41_SPEC_SYNC_FREE: "all"
+  DSV41_EAGER_GLUE: "all"
+  SGLANG_ROCE_ALLREDUCE: "1"
+  SGLANG_ROCE_MAX_SIZE: "2097152"
+  DSV41_ROCE_GATHER: "2097152"
+  NCCL_P2P_DISABLE: "1"
+  NCCL_SHM_DISABLE: "1"
+  NCCL_CUMEM_ENABLE: "0"
+  NCCL_BUFFSIZE: "1048576"
+  NCCL_PROTO: "^LL128"
+  NCCL_MAX_NCHANNELS: "8"
+  # Enable when debugging collective initialization:
+  # NCCL_DEBUG: "INFO"
+  # NCCL_DEBUG_SUBSYS: "INIT,ENV"
+  PYTORCH_CUDA_ALLOC_CONF: "expandable_segments:False"
+
+  # Active adapters read these as well as the matching engine flags.
+  CHUNKED_PREFILL_SIZE: "{config.chunked_prefill}"
+  CUDA_GRAPH_MAX_BS_DECODE: "{config.cuda_graph_max_bs_decode}"
+  DSPARK_BLOCK_SIZE: "{config.speculative_dspark_block_size}"
+  # Preparation guards for this TP4/DP1/PP1/EP1 profile.
+  EP_SIZE: "{config.expert_parallel}"
+  DATA_PARALLEL: "{config.data_parallel}"
+  PIPELINE_PARALLEL: "{config.pipeline_parallel}"
+  TP_SIZE: "{config.tensor_parallel}"
+  NNODES: "{launch.num_nodes}"
+  SERVER_PORT: "{config.port}"
+  CONTEXT_LENGTH: "{config.max_model_len}"
+  # Workload paths are resolved before creation; hooks and serving share them.
+  DSV41_SOURCE: "{launch.model_path}"
+  DSV41_PACKED_DIR: "{launch.runtime_cache_dir}/engram/v1/{launch.model_revision}"
+  # b12x_next derives its separate cache as STATE_PATH/b12x-next-compile.
+  STATE_PATH: "{launch.runtime_cache_dir}/state"
+  B12X_ROCE_CACHE_DIR: "{launch.runtime_cache_dir}/b12x-roce"
+  B12X_COMPILE_CACHE_DIR: "{launch.runtime_cache_dir}/b12x-compile"
+
