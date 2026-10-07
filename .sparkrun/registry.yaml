@@ -9,5 +9,6 @@ registries:
   - name: experimental
     description: Spark Arena registry for experimental recipes
     recipes: experimental-recipes
+    tuning: experimental-tuning
     visible: false
     mods: experimental-mods
