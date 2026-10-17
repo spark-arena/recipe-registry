@@ -1,0 +1,18 @@
+--- a/sglang/srt/function_call/_llm_nom/generator.py
++++ b/sglang/srt/function_call/_llm_nom/generator.py
+@@ -330,6 +330,15 @@
+                             char_index, min(len(self._input_buffer), max_target_length)
+                         )
+                     )
++                    # NOTE: ``StringByParts`` parts are token-aligned by
++                    # contract — each part is one tokenizer token and arrives
++                    # in a single ``update()`` chunk. So a buffer shorter than
++                    # the part is a *mismatch*, not "wait for more": the bytes
++                    # are content that happens to share a prefix. Waiting here
++                    # would withhold a trailing ``]`` (etc.) at end-of-stream
++                    # forever, since there is no EOS flush. If a part can
++                    # arrive non-atomically, use a plain ``str`` target
++                    # instead.
+                     mismatched = (
+                         len(self._input_buffer) < next_char_index
+                         or PrefixMatchingResult.check(
